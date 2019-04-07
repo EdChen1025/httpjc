@@ -25,7 +25,7 @@ type hashInfo struct {
 	hstr string
 }
 
-// hashWord takes an input string, using SHA512 encoding to generate a base64 string
+// hashWord takes an input string, using SHA512 encoding to generate a base64 encoded string
 func hashWord(pws string) string {
 	bts := sha512.Sum512([]byte(pws))
 	return base64.StdEncoding.EncodeToString([]byte(bts[:]))
@@ -41,6 +41,7 @@ func main() {
 	m := http.NewServeMux()
 	s := http.Server{Addr: ":8080", Handler: m}
 
+	// Handle / page
 	m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s?\n", r.URL.Path)
 	})
@@ -74,8 +75,9 @@ func main() {
 			go func(k int, v string) {
 				var req hashInfo
 
-				// Delay 5 seconds
+				// Artifical delay 5 seconds
 				time.Sleep(5 * time.Second)
+
 				// Time the hash function
 				t1 := time.Now()
 				req.hstr = hashWord(v)
@@ -85,7 +87,8 @@ func main() {
 				// Create the entry
 				hashmap[k] = req
 			}(idx, pws)
-			// 1-based number
+
+			// The identifier is a 1-based number
 			fmt.Fprintf(w, "%d\n", idx+1)
 			// fmt.Fprintf(w, "%v\n", req.tdur)
 			// fmt.Fprintf(w, "%q\n", req.hstr)
@@ -99,17 +102,17 @@ func main() {
 		// Get the request count substring
 		req := r.URL.Path[len("/hash/"):]
 
-		// Get the index number
+		// Get the identifier
 		if idx, err := strconv.Atoi(req); err == nil {
 			// fmt.Fprintf(w, "Request number: %d\n", idx)
 
-			// Request number is 1-base
+			// Identifer number is 1-base
 			idx--
 			// Ready or not
 			if hinf, ok := hashmap[idx]; ok {
 				fmt.Fprintf(w, "%q\n", hinf.hstr)
 			} else {
-				fmt.Fprintf(w, "Request number %d is not ready.\n", idx+1)
+				fmt.Fprintf(w, "Identifier number %d is not ready.\n", idx+1)
 			}
 		} else {
 			fmt.Fprintf(w, "%v\n", err)
@@ -123,7 +126,7 @@ func main() {
 		var stat siteStats
 		var tavg time.Duration
 
-		// Wait for all the pending requests
+		// Wait for all the pending requests done
 		for total != len(hashmap) {
 		}
 		// Total durations of all requests
@@ -133,8 +136,9 @@ func main() {
 		// Total number of requests
 		stat.Req = total
 		// Average time in microseconds
-		stat.Avg = int(tavg.Nanoseconds()/1000) / len(hashmap)
+		stat.Avg = int(tavg.Nanoseconds()/1000) / total
 
+		// Return in JSON
 		if bytes, err := json.Marshal(stat); err == nil {
 			fmt.Fprintf(w, "%v\n", string(bytes))
 		} else {
@@ -145,7 +149,7 @@ func main() {
 	// Handle /shutdown page
 	m.HandleFunc("/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Shutdown\n")
-		// w.Write([]byte("OK\n"))
+		// Use Goroutine to shutdown this server, so the previous string can be returned
 		go func() {
 			if err := s.Shutdown(context.Background()); err != nil {
 				log.Fatal(err)
